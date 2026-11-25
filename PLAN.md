@@ -29,7 +29,7 @@ Lưu ý thứ tự: đặc tả đặt tiến độ (5.1) ở Phase 2; người 
 1. Chủ học viện duyệt các quyết định trong [DECISIONS.md](docs/DECISIONS.md) (đặc biệt D1 trừ buổi nghỉ, D3 bảo lưu, D6 lịch lặp).
 2. Nối Supabase Auth thật (magic link/OTP), lời mời phụ huynh + duyệt liên kết.
 3. Hoàn thiện UI quản lý CRUD Phase 1, màn hình import preview/dry-run.
-4. Phase 2 còn lại: màn hình tạo đăng ký/lịch/bảo lưu, xin nghỉ từ app phụ huynh, job định kỳ `run_care_job` (scheduler).
+4. Phase 2 còn lại: job định kỳ `run_care_job` (scheduler), sửa/hủy đăng ký, liên kết phụ huynh từ màn quản lý. (Đã xong: tạo học viên, đăng ký gói, sinh lịch/hủy/bù/dời buổi, chuyển bảo lưu, duyệt xin nghỉ, phụ huynh xin nghỉ.)
 5. CI GitHub Actions: typecheck, lint, build, test DB với service postgres.
 
 ## Không làm trong MVP (theo đặc tả)

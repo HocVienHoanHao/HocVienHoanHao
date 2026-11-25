@@ -79,3 +79,13 @@ export function DemoBanner() {
     </div>
   );
 }
+
+/** Thông báo kết quả thao tác (từ ?ok= / ?err= sau server action). */
+export function Flash({ ok, err }: { ok?: string; err?: string }) {
+  if (!ok && !err) return null;
+  return (
+    <div data-flash role={err ? "alert" : "status"} className={`my-2 rounded-lg px-3 py-2 text-sm ring-1 ${err ? "bg-red-50 text-red-800 ring-red-200" : "bg-emerald-50 text-emerald-800 ring-emerald-200"}`}>
+      {(err ?? ok)?.slice(0, 300)}
+    </div>
+  );
+}

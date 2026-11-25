@@ -84,11 +84,12 @@ describe("Test 2 — sửa điểm danh, idempotent, không âm", () => {
     const b = await balance(eid);
     expect([b.available_sessions, b.present_sessions, b.charged_sessions]).toEqual([0, 2, 1]);
   });
-  it("đăng ký nháp không cấp quyền học", async () => {
+  it("đăng ký nháp không cấp quyền học; client không tự chèn đăng ký với quota tùy ý", async () => {
     const sid = await addStudent(sql, ID.branch.QN);
-    await asUser(sql, M, (tx) => tx`insert into enrollments (student_id, branch_id, course_id, class_id, start_date, snapshot_quota)
-      values (${sid}, ${ID.branch.QN}, ${ID.course.QN_K3}, ${ID.class.QN_U10}, ${DATES[0]}, 36)`);
+    await enroll(sql, { managerId: M, studentId: sid, classId: ID.class.QN_U10, planId: ID.plan.std3m, startDate: DATES[0], confirm: false });
     await expect(mark(sql, C, sessions[5], sid, "PRESENT")).rejects.toThrow(/chưa có đăng ký/);
+    await expect(asUser(sql, M, (tx) => tx`insert into enrollments (student_id, branch_id, course_id, class_id, start_date, snapshot_quota)
+      values (${sid}, ${ID.branch.QN}, ${ID.course.QN_K3}, ${ID.class.QN_U10}, ${DATES[0]}, 999)`)).rejects.toThrow(/permission denied/);
   });
 });
 
