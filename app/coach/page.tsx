@@ -76,7 +76,11 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
       }
       out.push({ cls, progress, sessions: withRoster });
     }
-    return out;
+    const tasks = await tx<{ id: string; reason: string; priority: string; student_name: string; due_at: string | null }[]>`
+      select c.id, c.reason, c.priority::text, s.full_name student_name, c.due_at from care_cases c
+      join students s on s.id = c.student_id
+      where c.assignee = auth.uid() and c.status in ('OPEN','IN_PROGRESS') order by c.due_at nulls last`;
+    return { out, tasks };
   });
 
   return (
@@ -86,9 +90,22 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
         <label className="flex flex-col gap-1"><span className="label">Ngày</span><input type="date" name="date" defaultValue={date} className="input" /></label>
         <button className="btn">Xem</button>
       </form>
-      {data.length === 0 && <EmptyState title="Chưa được phân công lớp nào" />}
+      {data.tasks.length > 0 && (
+        <section className="card mb-4">
+          <h2 className="mb-2 font-semibold text-navy">Việc chăm sóc được giao ({data.tasks.length})</h2>
+          <ul className="space-y-1 text-sm">
+            {data.tasks.map((t) => (
+              <li key={t.id} className="flex justify-between gap-2 border-t border-slate-100 pt-1">
+                <span>{t.priority === "HIGH" && <b className="text-rose-700">[Ưu tiên] </b>}{t.student_name}: {t.reason}</span>
+                <span className="text-xs text-slate-500">hạn {fmtDateTime(t.due_at ? String(t.due_at) : null)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {data.out.length === 0 && <EmptyState title="Chưa được phân công lớp nào" />}
       <div className="space-y-4">
-        {data.map(({ cls, progress, sessions }) => (
+        {data.out.map(({ cls, progress, sessions }) => (
           <section key={cls.id} className="card">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-base font-semibold text-navy">{cls.name}</h2>

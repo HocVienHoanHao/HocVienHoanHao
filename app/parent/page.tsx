@@ -33,7 +33,10 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
     const notes = await tx<{ id: string; content: string; d: string }[]>`select id, content,
       to_char(shared_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') d from notes
       where student_id = ${current.student_id} and visibility = 'PARENT' order by shared_at desc limit 5`;
-    return { children, current, cls, history, upcoming, notes, enrollments: mine };
+    const alerts = await tx<{ id: string; title: string; body: string; d: string }[]>`select id, title, body,
+      to_char(created_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') d from notifications
+      where student_id = ${current.student_id} order by created_at desc limit 5`;
+    return { children, current, cls, history, upcoming, notes, alerts, enrollments: mine };
   });
 
   const p = data.current;
@@ -68,6 +71,14 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
               <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
                 {p.renewal_alert === "RENEW_0" ? "Con đã dùng hết buổi học của gói. Vui lòng liên hệ học viện để đăng ký tiếp." : `Con còn ${p.available_sessions} buổi học. Phụ huynh có thể đăng ký gói mới khi thuận tiện.`}
               </div>
+            )}
+            {data.alerts && data.alerts.length > 0 && (
+              <section className="card text-sm">
+                <h2 className="mb-2 font-semibold text-navy">Thông báo</h2>
+                {data.alerts.map((a) => (
+                  <div key={a.id} className="border-t border-slate-100 py-1"><b>{a.title}</b> <span className="text-xs text-slate-400">({fmtDate(a.d)})</span><div className="text-slate-600">{a.body}</div></div>
+                ))}
+              </section>
             )}
             <section className="card space-y-2 text-sm">
               <h2 className="font-semibold text-navy">Tiến độ của con</h2>

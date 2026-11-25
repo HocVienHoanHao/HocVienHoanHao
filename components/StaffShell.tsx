@@ -6,9 +6,10 @@ import { DemoBanner } from "./ui";
 const NAV = [
   { href: "/admin", label: "Tổng quan" },
   { href: "/admin/students", label: "Học viên & tiến độ" },
+  { href: "/admin/care", label: "Chăm sóc" },
   { href: "/coach", label: "Giao diện HLV" },
 ];
-const LATER = ["Lịch & điểm danh", "Đăng ký & bảo lưu", "Thu chi", "Tạm ứng", "Kho", "Nhân sự/Lương", "Chăm sóc", "Import/Export", "Cài đặt & Audit"];
+const LATER = ["Lịch & điểm danh", "Đăng ký & bảo lưu", "Thu chi", "Tạm ứng", "Kho", "Nhân sự/Lương", "Import/Export", "Cài đặt & Audit"];
 
 export function StaffShell({ viewer, children }: { viewer: Viewer; children: ReactNode }) {
   return (

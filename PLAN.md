@@ -18,7 +18,7 @@ Tài liệu liên quan: [Giả định](docs/ASSUMPTIONS.md) · [ERD](docs/ERD.m
 |---|---|---|
 | 0 | PLAN, giả định, ERD, threat model, danh sách quyết định | ✅ Bản nháp, chờ duyệt quyết định |
 | 1 | Auth/RLS, branches, students, guardians, courses/classes, import staging (schema), dashboard skeleton, dữ liệu giả | 🟡 Schema + RLS + test xong; UI skeleton đang dựng; Supabase Auth thật chưa nối (đang dùng chọn danh tính DEV) |
-| 2 | Plans/enrollments, sessions/attendance, ledger, bảo lưu, **tiến độ & dự báo (5.1)**, care cases, thông báo in-app, cổng phụ huynh | 🟡 Ledger, bảo lưu, tiến độ/dự báo xong ở DB và có test; care cases/thông báo chưa làm |
+| 2 | Plans/enrollments, sessions/attendance, ledger, bảo lưu, **tiến độ & dự báo (5.1)**, care cases, thông báo in-app, cổng phụ huynh | 🟡 Ledger, bảo lưu, tiến độ/dự báo, care cases + thông báo in-app (test 4) xong có test; còn: xin nghỉ từ app phụ huynh, CRUD đăng ký/lịch |
 | 3 | Hóa đơn/phiếu thu/phân bổ, phiếu chi, tạm ứng, báo cáo tài chính, đối soát; kho; lương | ⬜ Chỉ có khung bảng `invoices`/`invoice_items` (để kiểm tra hạn hóa đơn độc lập với dự báo) |
 | 4 | Import thật sau duyệt, e2e, checklist production, backup, runbook | ⬜ |
 
@@ -29,7 +29,7 @@ Lưu ý thứ tự: đặc tả đặt tiến độ (5.1) ở Phase 2; người 
 1. Chủ học viện duyệt các quyết định trong [DECISIONS.md](docs/DECISIONS.md) (đặc biệt D1 trừ buổi nghỉ, D3 bảo lưu, D6 lịch lặp).
 2. Nối Supabase Auth thật (magic link/OTP), lời mời phụ huynh + duyệt liên kết.
 3. Hoàn thiện UI quản lý CRUD Phase 1, màn hình import preview/dry-run.
-4. Phase 2 còn lại: care cases (chuỗi vắng 2/3 buổi), cảnh báo 3/1/0 buổi có dedupe, thông báo in-app.
+4. Phase 2 còn lại: màn hình tạo đăng ký/lịch/bảo lưu, xin nghỉ từ app phụ huynh, job định kỳ `run_care_job` (scheduler).
 5. CI GitHub Actions: typecheck, lint, build, test DB với service postgres.
 
 ## Không làm trong MVP (theo đặc tả)

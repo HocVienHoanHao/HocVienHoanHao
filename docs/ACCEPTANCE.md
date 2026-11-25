@@ -17,8 +17,10 @@ Trạng thái: ✅ có test tự động đạt · 🟡 một phần · ⬜ chư
 - ✅ Nhiều quyền học song song theo FIFO; đổi chi nhánh cần quyền hai phía/SUPER_ADMIN
 
 ## Test 4 — cảnh báo & care case
-- 🟡 Trường `renewal_alert` (RENEW_3/1/0) có trong `student_progress`
-- ⬜ Tạo alert đúng một lần mỗi mốc/gói (dedupe), chuỗi 2 buổi vắng → care case, job chạy lặp không gửi trùng
+- ✅ Còn 3/1/0 → đúng một thông báo mỗi mốc/gói/người nhận (dedupe key enrollment/ngưỡng/version/người nhận); gói mới → cảnh báo mới; opt-out không nhận (`care.test.ts`)
+- ✅ Hai buổi vắng không phép liên tiếp đã xác nhận → care case; 3 buổi → ưu tiên cao; có mặt kết thúc chuỗi; buổi chưa điểm danh không bị coi vắng; job chạy lặp không trùng
+- ✅ HLV chỉ thấy việc được giao; phụ huynh không thấy care case/ghi chú liên hệ
+- ⬜ Kênh ngoài (email/push/Zalo) — chưa cấu hình, chỉ in-app
 
 ## Test 5 — phân quyền
 - ✅ Phụ huynh A không đọc/đổi dữ liệu con phụ huynh B (kể cả đoán ID), không thấy note nội bộ, không thấy danh sách lớp
