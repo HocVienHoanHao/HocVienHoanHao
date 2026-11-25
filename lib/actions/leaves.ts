@@ -21,12 +21,13 @@ export async function decideLeaveAction(fd: FormData) {
   const v = await requireViewer();
   const back = "/admin/leaves";
   const id = str(fd, "leave"), decision = str(fd, "decision");
-  await runAction(back, decision === "reject" ? "Đã từ chối đơn" : "Đã duyệt đơn", async () => {
+  await runAction(back, decision === "reject" ? "Đã từ chối đơn" : decision === "approve_free" ? "Đã duyệt ngoại lệ: không trừ buổi" : "Đã duyệt đơn (buổi nghỉ vẫn trừ theo quy định)", async () => {
     if (!UUID.test(id)) throw new InputError("Đơn không hợp lệ");
     if (decision === "reject") {
       await asUser(v.id, (tx) => tx`select public.reject_leave(${id}::uuid)`);
-    } else if (decision === "approve" || decision === "approve_charge") {
-      await asUser(v.id, (tx) => tx`select public.approve_leave(${id}::uuid, ${decision === "approve_charge"})`);
+    } else if (decision === "approve" || decision === "approve_free") {
+      // D1: nghỉ không bảo lưu -> mặc định trừ buổi; "approve_free" là ngoại lệ quản lý thỏa thuận riêng với phụ huynh
+      await asUser(v.id, (tx) => tx`select public.approve_leave(${id}::uuid, ${decision === "approve"})`);
     } else throw new InputError("Thao tác không hợp lệ");
     revalidatePath(back);
   });

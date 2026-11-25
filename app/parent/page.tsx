@@ -117,6 +117,7 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
                   <label className="flex flex-col gap-1"><span className="label">Từ ngày</span><input type="date" name="from" required min={asOf} className="input" /></label>
                   <label className="flex flex-col gap-1"><span className="label">Đến ngày</span><input type="date" name="to" min={asOf} className="input" /></label>
                   <label className="col-span-2 flex flex-col gap-1"><span className="label">Lý do</span><input name="reason" required maxLength={500} className="input" /></label>
+                  <p className="col-span-2 text-xs text-slate-500">Theo quy định của học viện, buổi nghỉ không được bảo lưu và vẫn tính vào gói. Trường hợp đặc biệt, phụ huynh vui lòng liên hệ học viện.</p>
                   <div className="col-span-2"><button className="btn w-full">Gửi đơn xin nghỉ</button></div>
                 </form>
               ) : <p className="text-slate-500">Vui lòng liên hệ học viện để xin nghỉ cho con.</p>}

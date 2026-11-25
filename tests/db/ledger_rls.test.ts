@@ -41,19 +41,44 @@ describe("Test 1 — quota", () => {
 });
 
 describe("Test 2 — sửa điểm danh, idempotent, không âm", () => {
-  it("PRESENT -> ABSENT_EXCUSED hoàn 1 buổi; gửi lại hai lần không trừ thêm", async () => {
+  it("PRESENT -> NOT_MARKED hoàn 1 buổi; gửi lại hai lần không trừ thêm", async () => {
     const { sid, eid } = await newEnrollment();
     expect((await mark(sql, C, sessions[0], sid, "PRESENT")).charge).toBe("CHARGED");
     expect((await mark(sql, C, sessions[0], sid, "PRESENT")).charge).toBe("CHARGED");
     expect((await balance(eid)).available_sessions).toBe(35);
-    await mark(sql, C, sessions[0], sid, "ABSENT_EXCUSED");
-    await mark(sql, C, sessions[0], sid, "ABSENT_EXCUSED");
+    await mark(sql, C, sessions[0], sid, "NOT_MARKED");
+    await mark(sql, C, sessions[0], sid, "NOT_MARKED");
     expect((await balance(eid)).available_sessions).toBe(36);
     await mark(sql, C, sessions[0], sid, "PRESENT");                  // sửa lại lần nữa: bút toán mới
     const b = await balance(eid);
     expect([b.available_sessions, b.charged_sessions, b.present_sessions]).toEqual([35, 1, 1]);
     const [{ n }] = await sql`select count(*)::int n from session_ledger where enrollment_id = ${eid} and event_type in ('CONSUME','REVERSAL')`;
     expect(n).toBe(3); // CONSUME, REVERSAL, CONSUME — không sửa/xóa bút toán cũ
+  });
+  it("D1: nghỉ (có phép hoặc không phép) vẫn trừ buổi, không bảo lưu", async () => {
+    const { sid, eid } = await newEnrollment();
+    expect((await mark(sql, C, sessions[0], sid, "PRESENT")).charge).toBe("CHARGED");
+    expect((await mark(sql, C, sessions[0], sid, "ABSENT_EXCUSED")).charge).toBe("CHARGED");
+    expect((await mark(sql, C, sessions[1], sid, "ABSENT_UNEXCUSED")).charge).toBe("CHARGED");
+    const b = await balance(eid);
+    expect([b.available_sessions, b.charged_sessions, b.present_sessions]).toEqual([34, 2, 0]);
+  });
+  it("D1 ngoại lệ: quản lý duyệt đơn nghỉ 'không trừ buổi' -> hoàn buổi đã trừ; duyệt mặc định vẫn trừ", async () => {
+    const { sid, eid } = await newEnrollment();
+    await mark(sql, C, sessions[2], sid, "ABSENT_EXCUSED");
+    await mark(sql, C, sessions[3], sid, "ABSENT_EXCUSED");
+    expect((await balance(eid)).available_sessions).toBe(34);
+    const free = await rpc<string>(sql, M, "request_leave", [sid, DATES[2], DATES[2], "Ốm dài ngày (demo)"]);
+    const normal = await rpc<string>(sql, M, "request_leave", [sid, DATES[3], DATES[3], "Việc gia đình (demo)"]);
+    await expect(rpc(sql, ID.user.careQN, "approve_leave", [free, false])).rejects.toThrow(/quyền/);
+    await rpc(sql, M, "approve_leave", [free, false]);
+    await rpc(sql, M, "approve_leave", [normal, true]);
+    expect((await balance(eid)).available_sessions).toBe(35);
+    // đi học thật trong ngày đã xin nghỉ miễn trừ -> vẫn trừ
+    expect((await mark(sql, C, sessions[2], sid, "PRESENT")).charge).toBe("CHARGED");
+    expect((await mark(sql, C, sessions[2], sid, "ABSENT_EXCUSED")).charge).toBe("NOT_CHARGEABLE");
+    const [au] = await sql`select change from audit_logs where entity = 'student_leave' and entity_id = ${free} and action = 'APPROVE'`;
+    expect(au.change.exception).toBe(true);
   });
   it("trial, NOT_MARKED và buổi chưa tổ chức không tự trừ; xác nhận buổi sau mới trừ", async () => {
     const { sid, eid } = await newEnrollment();
