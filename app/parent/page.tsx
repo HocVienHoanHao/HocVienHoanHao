@@ -3,13 +3,16 @@ import { asUser } from "@/lib/db";
 import { fmtCount, fmtDate, todayVn } from "@/lib/format";
 import { classProgress, studentProgressList, type StudentProgress } from "@/lib/progress";
 import { requireViewer } from "@/lib/session";
-import { DemoBanner, EmptyState, MilestoneDate, ProgressBar, StatusBadge } from "@/components/ui";
+import { DemoBanner, EmptyState, Flash, MilestoneDate, ProgressBar, StatusBadge } from "@/components/ui";
+import { requestLeaveAction } from "@/lib/actions/leaves";
 
 export const dynamic = "force-dynamic";
 
 const ATT: Record<string, string> = { PRESENT: "Có mặt", ABSENT_EXCUSED: "Nghỉ có phép", ABSENT_UNEXCUSED: "Nghỉ không phép", TRIAL: "Học thử", NOT_MARKED: "Chưa điểm danh" };
 
-export default async function ParentPage({ searchParams }: { searchParams: Promise<{ child?: string }> }) {
+const LEAVE: Record<string, string> = { REQUESTED: "Chờ duyệt", APPROVED: "Đã duyệt", REJECTED: "Không duyệt", CANCELLED: "Đã hủy" };
+
+export default async function ParentPage({ searchParams }: { searchParams: Promise<{ child?: string; ok?: string; err?: string }> }) {
   const viewer = await requireViewer();
   const sp = await searchParams;
   const asOf = todayVn();
@@ -36,7 +39,13 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
     const alerts = await tx<{ id: string; title: string; body: string; d: string }[]>`select id, title, body,
       to_char(created_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD') d from notifications
       where student_id = ${current.student_id} order by created_at desc limit 5`;
-    return { children, current, cls, history, upcoming, notes, alerts, enrollments: mine };
+    const [perm] = await tx<{ can: boolean }[]>`select gs.can_request_leave can from guardian_students gs
+      join guardians g on g.id = gs.guardian_id
+      where g.user_id = ${viewer.id} and gs.student_id = ${current.student_id} and gs.verified_at is not null`;
+    const leaves = await tx<{ id: string; from_date: string; to_date: string; status: string }[]>`select id, from_date::text from_date,
+      to_date::text to_date, status::text status from student_leaves where student_id = ${current.student_id}
+      order by from_date desc limit 5`;
+    return { children, current, cls, history, upcoming, notes, alerts, enrollments: mine, canLeave: Boolean(perm?.can), leaves };
   });
 
   const p = data.current;
@@ -55,6 +64,7 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
             ))}
           </nav>
         )}
+        <Flash ok={sp.ok} err={sp.err} />
         {!p ? <EmptyState title="Chưa có học viên được liên kết">Liên kết cần được học viện xác minh trước khi hiển thị.</EmptyState> : (
           <>
             <section className="card">
@@ -98,6 +108,29 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
               <h2 className="mb-2 font-semibold text-navy">Lịch tập sắp tới</h2>
               {data.upcoming?.length ? <ul className="space-y-1">{data.upcoming.map((u) => <li key={u.d}>{fmtDate(u.d)}</li>)}</ul> : <p className="text-slate-500">Chưa có lịch tập mới.</p>}
             </section>
+            <section id="xin-nghi" className="card text-sm">
+              <h2 className="mb-2 font-semibold text-navy">Xin nghỉ</h2>
+              {data.canLeave ? (
+                <form action={requestLeaveAction} className="grid grid-cols-2 gap-2">
+                  <input type="hidden" name="student" value={p.student_id} />
+                  <input type="hidden" name="back" value={`/parent?child=${p.student_id}#xin-nghi`} />
+                  <label className="flex flex-col gap-1"><span className="label">Từ ngày</span><input type="date" name="from" required min={asOf} className="input" /></label>
+                  <label className="flex flex-col gap-1"><span className="label">Đến ngày</span><input type="date" name="to" min={asOf} className="input" /></label>
+                  <label className="col-span-2 flex flex-col gap-1"><span className="label">Lý do</span><input name="reason" required maxLength={500} className="input" /></label>
+                  <div className="col-span-2"><button className="btn w-full">Gửi đơn xin nghỉ</button></div>
+                </form>
+              ) : <p className="text-slate-500">Vui lòng liên hệ học viện để xin nghỉ cho con.</p>}
+              {data.leaves && data.leaves.length > 0 && (
+                <ul className="mt-3 space-y-1 border-t border-slate-100 pt-2">
+                  {data.leaves.map((l) => (
+                    <li key={l.id} className="flex justify-between">
+                      <span>{fmtDate(l.from_date)}{l.to_date !== l.from_date && ` – ${fmtDate(l.to_date)}`}</span>
+                      <span>{LEAVE[l.status] ?? l.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             <section className="card text-sm">
               <h2 className="mb-2 font-semibold text-navy">Lịch sử điểm danh</h2>
               {data.history?.length ? <ul className="space-y-1">{data.history.map((h) => <li key={h.d + h.status} className="flex justify-between"><span>{fmtDate(h.d)}</span><span>{ATT[h.status]}</span></li>)}</ul> : <p className="text-slate-500">Chưa có.</p>}
@@ -114,7 +147,7 @@ export default async function ParentPage({ searchParams }: { searchParams: Promi
       <nav className="fixed inset-x-0 bottom-0 flex justify-around border-t border-slate-200 bg-white py-2 text-xs" aria-label="Điều hướng phụ huynh">
         <Link href="/parent" className="font-semibold text-brand">Tiến độ</Link>
         <span className="text-slate-400" aria-disabled>Hóa đơn</span>
-        <span className="text-slate-400" aria-disabled>Xin nghỉ</span>
+        <Link href={p ? `/parent?child=${p.student_id}#xin-nghi` : "/parent"} className="text-slate-600">Xin nghỉ</Link>
         <Link href="/login" className="text-slate-600">Tài khoản</Link>
       </nav>
     </div>

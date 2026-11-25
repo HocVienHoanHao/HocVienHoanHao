@@ -3,13 +3,15 @@ import type { ReactNode } from "react";
 import type { Viewer } from "@/lib/session";
 import { DemoBanner } from "./ui";
 
-const NAV = [
+const NAV: { href: string; label: string; managerOnly?: boolean }[] = [
   { href: "/admin", label: "Tổng quan" },
   { href: "/admin/students", label: "Học viên & tiến độ" },
+  { href: "/admin/enrollments", label: "Đăng ký & bảo lưu", managerOnly: true },
+  { href: "/admin/leaves", label: "Xin nghỉ" },
   { href: "/admin/care", label: "Chăm sóc" },
   { href: "/coach", label: "Giao diện HLV" },
 ];
-const LATER = ["Lịch & điểm danh", "Đăng ký & bảo lưu", "Thu chi", "Tạm ứng", "Kho", "Nhân sự/Lương", "Import/Export", "Cài đặt & Audit"];
+const LATER = ["Thu chi", "Tạm ứng", "Kho", "Nhân sự/Lương", "Import/Export", "Cài đặt & Audit"];
 
 export function StaffShell({ viewer, children }: { viewer: Viewer; children: ReactNode }) {
   return (
@@ -22,10 +24,11 @@ export function StaffShell({ viewer, children }: { viewer: Viewer; children: Rea
             <div className="text-xs text-slate-300 lg:mt-1">{viewer.fullName}</div>
           </div>
           <nav className="flex gap-1 overflow-x-auto px-2 pb-2 lg:block lg:space-y-1 lg:overflow-visible" aria-label="Điều hướng">
-            {NAV.filter((n) => n.href === "/coach" || viewer.isSuperAdmin || viewer.roles.some((r) => r.role !== "COACH")).map((n) => (
+            {NAV.filter((n) => n.href === "/coach" || viewer.isSuperAdmin
+              || (n.managerOnly ? viewer.roles.some((r) => r.role === "BRANCH_MANAGER") : viewer.roles.some((r) => r.role !== "COACH"))).map((n) => (
               <Link key={n.href} href={n.href} className="block whitespace-nowrap rounded-md px-3 py-2 text-sm hover:bg-white/10">{n.label}</Link>
             ))}
-            <div className="hidden px-3 pt-4 text-[11px] uppercase tracking-wide text-slate-400 lg:block">Sắp có (Phase 2–3)</div>
+            <div className="hidden px-3 pt-4 text-[11px] uppercase tracking-wide text-slate-400 lg:block">Sắp có (Phase 3–4)</div>
             {LATER.map((l) => (
               <span key={l} className="hidden cursor-not-allowed px-3 py-1.5 text-sm text-slate-400 lg:block" aria-disabled>{l}</span>
             ))}

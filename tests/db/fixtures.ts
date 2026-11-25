@@ -107,22 +107,16 @@ export async function linkGuardian(sql: Sql, userId: string, studentId: string, 
     values (${gid}, ${studentId}, 'Phụ huynh', ${verified ? new Date().toISOString() : null}, true)`;
 }
 
-/** Tạo đăng ký (DRAFT, qua quyền quản lý) rồi xác nhận -> cấp quyền học. */
+/** Tạo + xác nhận đăng ký qua RPC create_enrollment (snapshot từ gói) dưới quyền quản lý. */
 export async function enroll(sql: Sql, args: {
-  managerId: string; studentId: string; branchId: string; courseId: string; classId: string; planId: string;
-  startDate: string; weekdays?: number[] | null; validUntil?: string | null;
+  managerId: string; studentId: string; branchId?: string; courseId?: string; classId: string; planId: string;
+  startDate: string; weekdays?: number[] | null; validUntil?: string | null; confirm?: boolean;
 }): Promise<string> {
-  const [plan] = await sql`select * from plans where id = ${args.planId}`;
-  const id = await asUser(sql, args.managerId, async (tx) => {
-    const [r] = await tx`insert into enrollments (student_id, branch_id, course_id, class_id, plan_id, start_date,
-        snapshot_months, snapshot_quota, snapshot_milestones, snapshot_price, snapshot_billing_type, schedule_weekdays)
-      values (${args.studentId}, ${args.branchId}, ${args.courseId}, ${args.classId}, ${args.planId}, ${args.startDate},
-        ${plan.months}, ${plan.session_quota}, ${plan.milestone_targets}, ${plan.price}, ${plan.billing_type},
-        ${args.weekdays ?? null}) returning id`;
+  return asUser(sql, args.managerId, async (tx) => {
+    const [r] = await tx`select public.create_enrollment(${args.studentId}::uuid, ${args.classId}::uuid, ${args.planId}::uuid,
+      ${args.startDate}::date, ${args.weekdays ?? null}::int[], ${args.confirm ?? true}, ${args.validUntil ?? null}::date) as id`;
     return r.id as string;
   });
-  await rpc(sql, args.managerId, "confirm_enrollment", [id, args.validUntil ?? null]);
-  return id;
 }
 
 export async function addSessions(sql: Sql, classId: string, courseId: string, dates: string[]): Promise<string[]> {
