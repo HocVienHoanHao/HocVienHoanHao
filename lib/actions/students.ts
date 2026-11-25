@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { requireViewer } from "@/lib/session";
+import { todayVn } from "@/lib/format";
+import { invoiceItemsFromForm, parseVnd } from "@/lib/money";
 import { DATE, InputError, UUID, runAction, str, userMessage, withParam } from "./util";
 
 const STATUSES = ["LEAD", "ACTIVE", "PAUSED", "ON_HOLD", "COMPLETED", "STOPPED"] as const;
@@ -55,6 +57,12 @@ export async function createStudentProfileAction(fd: FormData) {
     const carry = carryRaw ? Number(carryRaw) : 0;
     if (!Number.isInteger(carry) || carry < 0 || carry > 100) throw new InputError("Số buổi bảo lưu không hợp lệ");
     if (carry > 0 && !enrolling) throw new InputError("Buổi bảo lưu cần đi kèm đăng ký lớp và gói");
+    let items, paid;
+    try { items = invoiceItemsFromForm((k) => str(fd, k), "f_"); paid = parseVnd(str(fd, "f_paid")); }
+    catch { throw new InputError("Số tiền không hợp lệ"); }
+    const method = str(fd, "f_method") || "CASH", paidOn = str(fd, "f_paid_on") || todayVn();
+    if (paid > 0 && items.length === 0) throw new InputError("Nhập khoản phải thu (học phí, đồng phục…) trước khi ghi đã thanh toán");
+    if (!["CASH", "TRANSFER", "OTHER"].includes(method) || !DATE.test(paidOn)) throw new InputError("Thông tin thanh toán không hợp lệ");
     const id = await asUser(v.id, async (tx) => {
       const [r] = await tx`select public.create_student(${branch}::uuid, ${name}, ${birth || null}::date) as id`;
       await tx`select public.update_student(${r.id}::uuid, ${name}, ${birth || null}::date, 'ACTIVE'::student_status, null,
@@ -63,10 +71,17 @@ export async function createStudentProfileAction(fd: FormData) {
         await tx`select public.save_student_guardian(${r.id}::uuid, null, ${g.name}, ${g.phone}, ${g.email}, ${g.relationship},
           ${g.canLeave}, ${g.hasZalo})`;
       }
+      let enrollmentId: string | null = null;
       if (enrolling) {
         const [e] = await tx`select public.create_enrollment(${r.id}::uuid, ${cls}::uuid, ${plan}::uuid, ${start}::date,
           ${days.length ? days : null}::int[], true, null::date) as id`;
+        enrollmentId = e.id as string;
         if (carry > 0) await tx`select public.add_opening_carryover(${e.id}::uuid, ${carry}::int, ${carryReason || null})`;
+      }
+      if (items.length > 0) {
+        const [inv] = await tx`select public.create_invoice(${r.id}::uuid, ${enrollmentId}::uuid, null::date,
+          ${JSON.stringify(items)}::jsonb, null) as id`;
+        if (paid > 0) await tx`select public.add_receipt(${inv.id}::uuid, ${paid}::bigint, ${paidOn}::date, ${method}, null)`;
       }
       return r.id as string;
     });

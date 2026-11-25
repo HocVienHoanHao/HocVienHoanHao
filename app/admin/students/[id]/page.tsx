@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
 import { fmtDate, fmtDateTime, todayVn } from "@/lib/format";
 import { isStaff, requireViewer } from "@/lib/session";
-import { EDITABLE_STATUSES, STUDENT_STATUS_LABEL, canManageBranch } from "@/lib/students";
+import { EDITABLE_STATUSES, STUDENT_STATUS_LABEL, canFinanceBranch, canManageBranch } from "@/lib/students";
+import { StudentFinance, type Invoice } from "@/components/StudentFinance";
 import { addOpeningCarryoverAction, saveGuardianAction, unlinkGuardianAction, updateStudentAction } from "@/lib/actions/students";
 import { StudentDetailFields, ageLabel } from "@/components/StudentFields";
 import { StaffShell } from "@/components/StaffShell";
@@ -65,12 +66,23 @@ export default async function StudentProfilePage({ params, searchParams }: {
         (select sum(en.quota)::int from entitlements en where en.enrollment_id = e.id and en.source = 'CARRYOVER') carryover
       from enrollments e join classes c on c.id = e.class_id join courses co on co.id = e.course_id left join plans p on p.id = e.plan_id
       where e.student_id = ${id} order by e.start_date desc`;
-    return { s, guardians, enrollments };
+    // RLS: chỉ quản lý/kế toán chi nhánh thấy phiếu thu
+    const invoices = await tx<Invoice[]>`select i.id, i.created_at::text, i.status, i.note, i.void_reason,
+        (select c.name || ' · từ ' || to_char(e.start_date, 'DD/MM/YYYY') from enrollments e join classes c on c.id = e.class_id where e.id = i.enrollment_id) enrollment_label,
+        t.total::text, t.paid::text, t.remaining::text,
+        coalesce((select json_agg(json_build_object('category', it.category, 'amount', it.amount::text, 'discount', it.discount::text, 'description', it.description) order by it.category)
+          from invoice_items it where it.invoice_id = i.id), '[]') items,
+        coalesce((select json_agg(json_build_object('id', r.id, 'amount', r.amount::text, 'paid_on', to_char(r.paid_on, 'YYYY-MM-DD'), 'method', r.method,
+          'note', r.note, 'voided', r.voided_at is not null, 'void_reason', r.void_reason) order by r.paid_on, r.created_at)
+          from receipts r where r.invoice_id = i.id), '[]') receipts
+      from invoices i cross join lateral app.invoice_totals(i.id) t where i.student_id = ${id} order by i.created_at desc`;
+    return { s, guardians, enrollments, invoices };
   });
   if (!data) notFound();
-  const { s, guardians, enrollments } = data;
+  const { s, guardians, enrollments, invoices } = data;
   const canEdit = canManageBranch(viewer, s.branch_id);
   const year = Number(todayVn().slice(0, 4));
+  const canFinance = canFinanceBranch(viewer, s.branch_id);
 
   return (
     <StaffShell viewer={viewer}>
@@ -187,6 +199,8 @@ export default async function StudentProfilePage({ params, searchParams }: {
           </div>
         )}
       </section>
+      {canFinance && <StudentFinance studentId={s.id} invoices={invoices}
+        enrollments={enrollments.filter((e) => e.status !== "CANCELLED").map((e) => ({ id: e.id, label: `${e.course_name} · ${e.class_name} · từ ${fmtDate(e.start_date)}` }))} />}
     </StaffShell>
   );
 }

@@ -8,6 +8,7 @@ import { createStudentProfileAction } from "@/lib/actions/students";
 import { StaffShell } from "@/components/StaffShell";
 import { Flash } from "@/components/ui";
 import { StudentDetailFields } from "@/components/StudentFields";
+import { InvoiceFields } from "@/components/InvoiceFields";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,12 @@ export default async function NewStudentPage({ searchParams }: { searchParams: P
           <label className="flex flex-col gap-1"><span className="label">Ghi chú bảo lưu</span>
             <input name="carryover_reason" maxLength={300} placeholder="VD: Bảo lưu 6 buổi khóa K2" className="input" /></label>
           <p className="text-xs text-slate-500 sm:col-span-2">Buổi bảo lưu chỉ dùng trong khóa này (hết hạn khi khóa kết thúc) và mỗi học viên chỉ nhận bảo lưu 1 lần.</p>
+        </section>
+
+        <section className="card grid gap-2 sm:grid-cols-2">
+          <h2 className="font-semibold text-navy sm:col-span-2">4. Thu tiền <span className="text-sm font-normal text-slate-500">(không bắt buộc, có thể ghi sau trong hồ sơ)</span></h2>
+          <InvoiceFields prefix="f_" />
+          <p className="text-xs text-slate-500 sm:col-span-2">Còn lại = tổng phải thu − đã thanh toán, app tự tính. Các lần đóng tiền sau ghi trong hồ sơ học viên, mục “Thu tiền”.</p>
         </section>
 
         <div className="flex gap-2"><button className="btn">Tạo học viên</button><Link href="/admin/students/profiles" className="btn-ghost">Hủy</Link></div>
