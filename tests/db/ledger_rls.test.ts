@@ -132,6 +132,9 @@ describe("Test 3 — bảo lưu, FIFO, đổi chi nhánh", () => {
     const [{ carry }] = await sql`select sum(signed_delta)::int carry from session_ledger l join entitlements e on e.id = l.entitlement_id
       where e.enrollment_id = ${k4} and e.source = 'CARRYOVER'`;
     expect(carry).toBe(6);
+    // D3: buổi bảo lưu chỉ dùng trong khóa kế tiếp -> hạn = ngày kết thúc K4
+    const [{ vu }] = await sql`select valid_until::text vu from entitlements where enrollment_id = ${k4} and source = 'CARRYOVER'`;
+    expect(vu).toBe("2027-03-31");
     // FIFO: quyền bảo lưu (hết hạn sớm hơn) dùng trước quyền mua mới
     await sql`update entitlements set valid_until = '2027-01-31' where enrollment_id = ${k4} and source = 'CARRYOVER'`;
     const k4s = await addSessions(sql, ID.class.QN_K4_U10, ID.course.QN_K4, ["2026-11-25", "2026-11-25"]); // 2 buổi cùng ngày
@@ -143,6 +146,15 @@ describe("Test 3 — bảo lưu, FIFO, đổi chi nhánh", () => {
     expect(carryLeft).toBe(4);
     const [{ inv }] = await sql`select count(*)::int inv from invoices where student_id = ${sid}`;
     expect(inv).toBe(0);                               // bảo lưu không tạo doanh thu/hóa đơn mới
+  });
+  it("D3: không đặt hạn bảo lưu dài hơn khóa kế tiếp; không chuyển ngược về khóa trước", async () => {
+    const { sid, eid } = await newEnrollment();
+    const k4 = await enroll(sql, { managerId: M, studentId: sid, classId: ID.class.QN_K4_U10, planId: ID.plan.std1m, startDate: "2026-12-14" });
+    await rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c1", eid, k4, 3, "2026-11-25", "Bảo lưu", "2027-12-31"]);
+    const [{ vu }] = await sql`select valid_until::text vu from entitlements where enrollment_id = ${k4} and source = 'CARRYOVER'`;
+    expect(vu).toBe("2027-03-31");
+    await expect(rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c2", k4, eid, 2, "2026-11-25", "Chuyển ngược", null]))
+      .rejects.toThrow(/khóa sau/);
   });
   it("đổi chi nhánh cần quyền quản lý cả hai chi nhánh", async () => {
     const { sid, eid } = await newEnrollment();
