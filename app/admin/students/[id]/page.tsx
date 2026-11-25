@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
-import { fmtDate, fmtDateTime } from "@/lib/format";
+import { fmtDate, fmtDateTime, todayVn } from "@/lib/format";
 import { isStaff, requireViewer } from "@/lib/session";
 import { EDITABLE_STATUSES, STUDENT_STATUS_LABEL, canManageBranch } from "@/lib/students";
-import { saveGuardianAction, unlinkGuardianAction, updateStudentAction } from "@/lib/actions/students";
+import { addOpeningCarryoverAction, saveGuardianAction, unlinkGuardianAction, updateStudentAction } from "@/lib/actions/students";
+import { StudentDetailFields, ageLabel } from "@/components/StudentFields";
 import { StaffShell } from "@/components/StaffShell";
 import { EmptyState, Flash } from "@/components/ui";
 
@@ -15,10 +16,11 @@ const ENR_LABEL: Record<string, string> = {
 };
 
 type Student = { id: string; student_code: string; full_name: string; birth_date: string | null; status: string;
-  status_reason: string | null; status_changed_at: string | null; branch_id: string; branch_code: string; branch_name: string; created_at: string };
-type Guardian = { id: string; full_name: string; phone: string | null; email: string | null; has_account: boolean;
+  status_reason: string | null; status_changed_at: string | null; branch_id: string; branch_code: string; branch_name: string; created_at: string;
+  birth_year: number | null; address: string | null; uniform_size: string | null; shoe_size: string | null; note: string | null };
+type Guardian = { id: string; full_name: string; phone: string | null; phone_has_zalo: boolean; email: string | null; has_account: boolean;
   relationship: string; can_request_leave: boolean; siblings: number };
-type Enr = { id: string; class_id: string; class_name: string; course_name: string; plan_name: string | null; start_date: string; status: string; quota: number | null };
+type Enr = { id: string; class_id: string; class_name: string; course_name: string; plan_name: string | null; start_date: string; status: string; quota: number | null; carryover: number | null };
 
 function GuardianFields({ g }: { g?: Guardian }) {
   return (
@@ -31,7 +33,9 @@ function GuardianFields({ g }: { g?: Guardian }) {
         <input type="tel" name="phone" maxLength={30} inputMode="tel" defaultValue={g?.phone ?? ""} className="input" /></label>
       <label className="flex flex-col gap-1"><span className="label">Email</span>
         <input type="email" name="email" maxLength={254} defaultValue={g?.email ?? ""} className="input" /></label>
-      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="has_zalo" defaultChecked={g ? g.phone_has_zalo : true} /> Số này có Zalo</label>
+      <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="can_request_leave" defaultChecked={g?.can_request_leave ?? false} /> Được xin nghỉ cho con qua app</label>
     </>
   );
@@ -48,15 +52,17 @@ export default async function StudentProfilePage({ params, searchParams }: {
 
   const data = await asUser(viewer.id, async (tx) => {
     const [s] = await tx<Student[]>`select s.id, s.student_code, s.full_name, to_char(s.birth_date, 'YYYY-MM-DD') birth_date, s.status::text status,
-        s.status_reason, s.status_changed_at::text, s.primary_branch_id branch_id, b.code branch_code, b.name branch_name, s.created_at::text
+        s.status_reason, s.status_changed_at::text, s.primary_branch_id branch_id, b.code branch_code, b.name branch_name, s.created_at::text,
+        s.birth_year, s.address, s.uniform_size, s.shoe_size, s.note
       from students s join branches b on b.id = s.primary_branch_id where s.id = ${id}`;
     if (!s) return null;
-    const guardians = await tx<Guardian[]>`select g.id, g.full_name, g.phone, g.email, g.user_id is not null has_account,
+    const guardians = await tx<Guardian[]>`select g.id, g.full_name, g.phone, g.phone_has_zalo, g.email, g.user_id is not null has_account,
         gs.relationship, gs.can_request_leave,
         (select count(*)::int from guardian_students o where o.guardian_id = g.id and o.student_id <> ${id}) siblings
       from guardian_students gs join guardians g on g.id = gs.guardian_id where gs.student_id = ${id} order by gs.created_at`;
     const enrollments = await tx<Enr[]>`select e.id, e.class_id, c.name class_name, co.name course_name, p.name plan_name,
-        to_char(e.start_date, 'YYYY-MM-DD') start_date, e.status::text status, e.snapshot_quota quota
+        to_char(e.start_date, 'YYYY-MM-DD') start_date, e.status::text status, e.snapshot_quota quota,
+        (select sum(en.quota)::int from entitlements en where en.enrollment_id = e.id and en.source = 'CARRYOVER') carryover
       from enrollments e join classes c on c.id = e.class_id join courses co on co.id = e.course_id left join plans p on p.id = e.plan_id
       where e.student_id = ${id} order by e.start_date desc`;
     return { s, guardians, enrollments };
@@ -64,6 +70,7 @@ export default async function StudentProfilePage({ params, searchParams }: {
   if (!data) notFound();
   const { s, guardians, enrollments } = data;
   const canEdit = canManageBranch(viewer, s.branch_id);
+  const year = Number(todayVn().slice(0, 4));
 
   return (
     <StaffShell viewer={viewer}>
@@ -81,19 +88,21 @@ export default async function StudentProfilePage({ params, searchParams }: {
               <input type="hidden" name="id" value={s.id} />
               <label className="flex flex-col gap-1 sm:col-span-2"><span className="label">Họ tên</span>
                 <input name="name" required minLength={2} maxLength={120} defaultValue={s.full_name} className="input" /></label>
-              <label className="flex flex-col gap-1"><span className="label">Ngày sinh</span>
-                <input type="date" name="birth" min="1990-01-01" defaultValue={s.birth_date ?? ""} className="input" /></label>
+              <StudentDetailFields s={s} />
               <label className="flex flex-col gap-1"><span className="label">Trạng thái</span>
                 <select name="status" defaultValue={s.status === "UNKNOWN" ? "ACTIVE" : s.status} className="input">
                   {EDITABLE_STATUSES.map((k) => <option key={k} value={k}>{STUDENT_STATUS_LABEL[k]}</option>)}
                 </select></label>
-              <label className="flex flex-col gap-1 sm:col-span-2"><span className="label">Lý do đổi trạng thái (bắt buộc khi “Đã nghỉ hẳn”)</span>
+              <label className="flex flex-col gap-1"><span className="label">Lý do đổi trạng thái (bắt buộc khi “Đã nghỉ hẳn”)</span>
                 <input name="status_reason" maxLength={300} defaultValue={s.status_reason ?? ""} className="input" /></label>
               <div className="sm:col-span-2"><button className="btn">Lưu thông tin</button></div>
             </form>
           ) : (
             <dl className="grid grid-cols-2 gap-2 text-sm">
-              <dt className="label">Ngày sinh</dt><dd>{fmtDate(s.birth_date)}</dd>
+              <dt className="label">Ngày sinh</dt><dd>{s.birth_date ? fmtDate(s.birth_date) : ageLabel(s.birth_year, year)}</dd>
+              <dt className="label">Địa chỉ</dt><dd>{s.address ?? "—"}</dd>
+              <dt className="label">Size đồng phục / giày</dt><dd>{s.uniform_size ?? "—"} / {s.shoe_size ?? "—"}</dd>
+              {s.note && <><dt className="label">Ghi chú</dt><dd className="whitespace-pre-line">{s.note}</dd></>}
               <dt className="label">Trạng thái</dt><dd>{STUDENT_STATUS_LABEL[s.status] ?? s.status}</dd>
               {s.status_reason && <><dt className="label">Lý do</dt><dd>{s.status_reason}</dd></>}
             </dl>
@@ -110,7 +119,7 @@ export default async function StudentProfilePage({ params, searchParams }: {
               <li key={g.id} className="rounded-lg p-3 ring-1 ring-slate-200">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div><span className="font-medium">{g.full_name}</span> <span className="text-sm text-slate-500">· {g.relationship}</span></div>
-                  <div className="text-sm">{g.phone ? <a className="text-brand hover:underline" href={`tel:${g.phone}`}>{g.phone}</a> : <span className="text-slate-400">Chưa có SĐT</span>}</div>
+                  <div className="text-sm">{g.phone ? <><a className="text-brand hover:underline" href={`tel:${g.phone}`}>{g.phone}</a>{g.phone_has_zalo && <span className="ml-1 rounded bg-blue-50 px-1.5 text-xs text-blue-700 ring-1 ring-blue-200">Zalo</span>}</> : <span className="text-slate-400">Chưa có SĐT</span>}</div>
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
                   {g.email && <>{g.email} · </>}{g.has_account ? "Có tài khoản app" : "Chưa có tài khoản app"}
@@ -156,13 +165,20 @@ export default async function StudentProfilePage({ params, searchParams }: {
         {enrollments.length === 0 ? <EmptyState title="Chưa đăng ký gói học nào" /> : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead className="bg-slate-50"><tr><th>Khóa</th><th>Lớp</th><th>Gói</th><th>Bắt đầu</th><th>Số buổi</th><th>Trạng thái</th></tr></thead>
+              <thead className="bg-slate-50"><tr><th>Khóa</th><th>Lớp</th><th>Gói</th><th>Bắt đầu</th><th>Số buổi</th><th>Bảo lưu khóa trước</th><th>Trạng thái</th></tr></thead>
               <tbody>
                 {enrollments.map((e) => (
                   <tr key={e.id} className="border-t border-slate-100">
                     <td>{e.course_name}</td>
                     <td><Link className="text-brand hover:underline" href={`/admin/classes/${e.class_id}`}>{e.class_name}</Link></td>
                     <td>{e.plan_name ?? "—"}</td><td>{fmtDate(e.start_date)}</td><td>{e.quota ?? "Theo lượt"}</td>
+                    <td>{e.carryover ? `+${e.carryover} buổi` : canEdit && ["CONFIRMED", "DRAFT"].includes(e.status) ? (
+                      <form action={addOpeningCarryoverAction} className="flex flex-wrap items-center gap-1">
+                        <input type="hidden" name="student" value={s.id} /><input type="hidden" name="enrollment" value={e.id} />
+                        <input type="number" name="sessions" min={1} max={100} required placeholder="Số buổi" className="input w-24 py-1" />
+                        <input name="reason" maxLength={300} placeholder="Ghi chú" className="input w-40 py-1" />
+                        <button className="btn-ghost py-1">Cộng</button>
+                      </form>) : "—"}</td>
                     <td>{ENR_LABEL[e.status] ?? e.status}</td>
                   </tr>
                 ))}

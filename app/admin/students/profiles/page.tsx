@@ -9,7 +9,7 @@ import { EmptyState, Flash } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-type Row = { id: string; student_code: string; full_name: string; birth_date: string | null; status: string; branch_code: string;
+type Row = { id: string; student_code: string; full_name: string; birth_date: string | null; birth_year: number | null; status: string; branch_code: string;
   guardians: string | null; phones: string | null; active_enrollments: number };
 
 export default async function StudentProfilesPage({ searchParams }: { searchParams: Promise<{ q?: string; branch?: string; status?: string; ok?: string }> }) {
@@ -29,7 +29,7 @@ export default async function StudentProfilesPage({ searchParams }: { searchPara
       and (app.is_super_admin() or exists (select 1 from branch_memberships m where m.user_id = auth.uid() and m.active and m.branch_id = b.id))
       order by b.code`,
     // RLS chỉ trả về học viên và phụ huynh người dùng được xem
-    rows: await tx<Row[]>`select s.id, s.student_code, s.full_name, to_char(s.birth_date, 'YYYY-MM-DD') birth_date, s.status::text status, b.code branch_code,
+    rows: await tx<Row[]>`select s.id, s.student_code, s.full_name, to_char(s.birth_date, 'YYYY-MM-DD') birth_date, s.birth_year, s.status::text status, b.code branch_code,
         string_agg(distinct g.full_name, ', ') guardians, string_agg(distinct g.phone, ', ') phones,
         (select count(*)::int from enrollments e where e.student_id = s.id and e.status in ('CONFIRMED','DRAFT')) active_enrollments
       from students s join branches b on b.id = s.primary_branch_id
@@ -69,13 +69,13 @@ export default async function StudentProfilesPage({ searchParams }: { searchPara
       {rows.length === 0 ? <EmptyState title="Không có học viên phù hợp" /> : (
         <div className="card overflow-x-auto p-0">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50"><tr><th>Mã</th><th>Họ tên</th><th>Ngày sinh</th><th>Phụ huynh</th><th>SĐT</th><th>Trạng thái</th><th>Đăng ký đang mở</th></tr></thead>
+            <thead className="bg-slate-50"><tr><th>Mã</th><th>Họ tên</th><th>Ngày / năm sinh</th><th>Phụ huynh</th><th>SĐT</th><th>Trạng thái</th><th>Đăng ký đang mở</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
                   <td className="font-mono text-xs">{r.student_code}</td>
                   <td><Link className="font-medium text-brand hover:underline" href={`/admin/students/${r.id}`}>{r.full_name}</Link></td>
-                  <td>{fmtDate(r.birth_date)}</td>
+                  <td>{r.birth_date ? fmtDate(r.birth_date) : r.birth_year ?? "—"}</td>
                   <td>{r.guardians ?? <span className="text-slate-400">—</span>}</td>
                   <td>{r.phones ?? <span className="text-slate-400">—</span>}</td>
                   <td>{STUDENT_STATUS_LABEL[r.status] ?? r.status}</td>
