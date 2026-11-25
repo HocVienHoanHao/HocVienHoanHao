@@ -2,12 +2,14 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { asUser } from "./db";
+import { asUser, assertDemoDatabase } from "./db";
 import { authConfigured, supabaseServer } from "./supabase";
+import { demoMode } from "./demo";
 
 export const DEV_COOKIE = "hh_dev_user";
 
 export function devSwitcherEnabled(): boolean {
+  if (demoMode()) return true;
   return process.env.NODE_ENV !== "production" && process.env.DEV_IDENTITY_SWITCHER === "1";
 }
 
@@ -25,7 +27,10 @@ export type Identity = { id: string; email: string | null; source: "supabase" | 
 export const getIdentity = cache(async (): Promise<Identity | null> => {
   if (devSwitcherEnabled()) {
     const id = (await cookies()).get(DEV_COOKIE)?.value;
-    if (id && /^[0-9a-f-]{36}$/i.test(id)) return { id, email: null, source: "dev" };
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) {
+      if (demoMode()) await assertDemoDatabase();
+      return { id, email: null, source: "dev" };
+    }
   }
   if (authConfigured()) {
     const { data, error } = await (await supabaseServer()).auth.getUser();

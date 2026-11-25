@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listDemoIdentities } from "@/lib/db";
 import { devSwitcherEnabled, getIdentity, getViewer, homeFor } from "@/lib/session";
 import { authConfigured } from "@/lib/supabase";
+import { demoMode } from "@/lib/demo";
 import { Flash } from "@/components/ui";
 import { chooseDevIdentityAction, logoutAction, sendLoginCodeAction, verifyLoginCodeAction } from "@/lib/actions/auth";
 
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ step?: string; err?: string }> }) {
   const sp = await searchParams;
-  const auth = authConfigured(), dev = devSwitcherEnabled();
+  const auth = authConfigured(), dev = devSwitcherEnabled(), demo = demoMode();
   const ident = await getIdentity();
   const viewer = ident ? await getViewer() : null;
   const people = dev ? await listDemoIdentities() : [];
@@ -67,7 +68,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
       {dev && (
         <div className="card mt-3 space-y-2">
-          <div className="label">Tài khoản demo (chỉ môi trường phát triển, dữ liệu giả)</div>
+          <div className="label">{demo ? "Chọn một vai trò để xem thử" : "Tài khoản demo (chỉ môi trường phát triển, dữ liệu giả)"}</div>
+          {demo && <p className="text-xs text-slate-500">Bản xem thử dùng dữ liệu giả, không cần đăng nhập. Mỗi vai trò thấy đúng phần việc của mình.</p>}
           {people.length === 0 && <p className="text-sm text-slate-600">Chưa có dữ liệu demo. Chạy <code>npm run db:reset</code>.</p>}
           {people.map((p) => (
             <form key={p.id} action={chooseDevIdentityAction}>

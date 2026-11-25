@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { claimInvitations } from "@/lib/auth/finish";
 import { DEV_COOKIE, devSwitcherEnabled } from "@/lib/session";
+import { assertDemoDatabase, listDemoIdentities } from "@/lib/db";
+import { demoMode } from "@/lib/demo";
 import { authConfigured, siteUrl, supabaseServer } from "@/lib/supabase";
 import { str } from "./util";
 
@@ -49,6 +51,10 @@ export async function chooseDevIdentityAction(fd: FormData) {
   if (!devSwitcherEnabled()) throw new Error("Chế độ DEV đang tắt");
   const id = str(fd, "id");
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Danh tính không hợp lệ");
-  (await cookies()).set(DEV_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/", secure: false });
+  if (demoMode()) {
+    await assertDemoDatabase();
+    if (!(await listDemoIdentities()).some((p) => p.id === id)) throw new Error("Danh tính không hợp lệ");
+  }
+  (await cookies()).set(DEV_COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/", secure: process.env.NODE_ENV === "production" });
   redirect("/");
 }
