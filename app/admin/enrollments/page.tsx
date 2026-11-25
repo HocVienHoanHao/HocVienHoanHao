@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { asUser } from "@/lib/db";
@@ -58,7 +59,7 @@ export default async function EnrollmentsPage({ searchParams }: { searchParams: 
             <label className="flex flex-col gap-1"><span className="label">Ngày sinh (không bắt buộc)</span><input type="date" name="birth" className="input" /></label>
             <div className="flex items-end"><button className="btn">Tạo học viên</button></div>
           </form>
-          <p className="mt-2 text-xs text-slate-500">Mã học viên tự sinh theo chi nhánh (VD: QN-000001). Số điện thoại phụ huynh nhập ở bước liên kết phụ huynh.</p>
+          <p className="mt-2 text-xs text-slate-500">Mã học viên tự sinh theo chi nhánh (VD: QN-000001). Thêm phụ huynh, sửa thông tin: <Link className="text-brand hover:underline" href="/admin/students/profiles">Danh sách học viên</Link>.</p>
         </section>
 
         <section className="card">

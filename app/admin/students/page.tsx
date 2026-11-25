@@ -5,6 +5,7 @@ import { fmtCount, fmtDate, isIsoDate, todayVn } from "@/lib/format";
 import { studentProgressList } from "@/lib/progress";
 import { applyFilter, FILTER_LABEL, parseFilter, type ProgressFilter } from "@/lib/progress-filters";
 import { isStaff, requireViewer } from "@/lib/session";
+import { managedBranchIds } from "@/lib/students";
 import { StaffShell } from "@/components/StaffShell";
 import { FilterBar } from "@/components/FilterBar";
 import { EmptyState, MilestoneDate, StatusBadge } from "@/components/ui";
@@ -19,6 +20,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const uuid = (v?: string) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v : null);
   const branchId = uuid(sp.branch); const classId = uuid(sp.class);
   const filter = parseFilter(sp.filter);
+  const managed = managedBranchIds(viewer);
+  const canCreate = managed === null || managed.length > 0;
 
   const { branches, classes, rows } = await asUser(viewer.id, async (tx) => ({
     branches: await tx<{ id: string; code: string; name: string }[]>`select b.id, b.code, b.name from branches b where b.status = 'ACTIVE'
@@ -33,7 +36,13 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <StaffShell viewer={viewer}>
-      <h1 className="mb-1 text-xl font-bold text-navy">Học viên & tiến độ</h1>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold text-navy">Học viên & tiến độ</h1>
+        <div className="flex gap-2">
+          <Link href="/admin/students/profiles" className="btn-ghost">Danh sách & hồ sơ học viên</Link>
+          {canCreate && <Link href="/admin/students/new" className="btn">+ Thêm học viên</Link>}
+        </div>
+      </div>
       <p className="mb-4 text-sm text-slate-500">Ngày chốt {fmtDate(asOf)} · “Lớp đã tập” khác “Học viên đã học” và “Còn quyền học”</p>
       <FilterBar branches={branches} branchId={branchId} asOf={asOf} action="/admin/students">
         <label className="flex flex-col gap-1">
@@ -68,7 +77,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               {shown.map((p) => (
                 <tr key={p.enrollment_id} className="border-t border-slate-100 align-top">
                   <td className="font-mono text-xs">{p.student_code}</td>
-                  <td className="font-medium">{p.student_name}</td>
+                  <td className="font-medium"><Link className="hover:text-brand hover:underline" href={`/admin/students/${p.student_id}`}>{p.student_name}</Link></td>
                   <td><Link className="text-brand hover:underline" href={`/admin/classes/${p.class_id}?asOf=${asOf}`}>{p.class_name}</Link></td>
                   <td>{fmtDate(p.start_date)}</td>
                   <td>{p.quota ?? "Theo lượt"}</td>
