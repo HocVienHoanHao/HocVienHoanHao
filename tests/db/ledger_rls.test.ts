@@ -188,4 +188,12 @@ describe("Test 5 — phân quyền RLS (JWT từng người, không dùng servic
     });
     expect(rows.length).toBe(1);
   });
+  it("mọi vai trò đọc được mọi bảng mà không lỗi policy (không đệ quy)", async () => {
+    const tables = (await sql`select tablename from pg_tables where schemaname = 'public'`).map((r) => r.tablename as string);
+    for (const user of Object.values(ID.user)) {
+      for (const t of tables) {
+        await q(user, (tx) => tx.unsafe(`select count(*) from public.${t}`));
+      }
+    }
+  });
 });

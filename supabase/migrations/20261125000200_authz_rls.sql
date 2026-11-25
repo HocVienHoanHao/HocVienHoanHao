@@ -36,6 +36,12 @@ language sql stable security definer set search_path = public, pg_temp as $$
       and gs.verified_at is not null and g.verified_at is not null)
 $$;
 
+-- id hồ sơ giám hộ của người đang đăng nhập (definer: tránh đệ quy policy guardians <-> guardian_students)
+create or replace function app.my_guardian_id() returns uuid
+language sql stable security definer set search_path = public, pg_temp as $$
+  select id from guardians where user_id = auth.uid()
+$$;
+
 create or replace function app.guardian_can_view_finance(p_student uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select exists (
@@ -158,7 +164,7 @@ create policy guardians_write on public.guardians for all to authenticated using
           where m.user_id = auth.uid() and m.role = 'BRANCH_MANAGER' and m.active));
 
 create policy guardian_students_read on public.guardian_students for select to authenticated using (
-  exists (select 1 from guardians g where g.id = guardian_id and g.user_id = auth.uid())
+  guardian_id = app.my_guardian_id()
   or exists (select 1 from students s where s.id = student_id
              and app.has_branch_role(s.primary_branch_id, '{BRANCH_MANAGER,CARE_STAFF}')));
 create policy guardian_students_write on public.guardian_students for all to authenticated
@@ -220,8 +226,8 @@ create policy leaves_read on public.student_leaves for select to authenticated
   using (app.can_view_student(student_id));
 create policy leaves_write on public.student_leaves for insert to authenticated with check (
   (status = 'REQUESTED' and app.is_guardian_of(student_id) and exists (
-     select 1 from guardian_students gs join guardians g on g.id = gs.guardian_id
-     where gs.student_id = student_leaves.student_id and g.user_id = auth.uid() and gs.can_request_leave))
+     select 1 from guardian_students gs
+     where gs.student_id = student_leaves.student_id and gs.guardian_id = app.my_guardian_id() and gs.can_request_leave))
   or exists (select 1 from students s where s.id = student_id
              and app.has_branch_role(s.primary_branch_id, '{BRANCH_MANAGER,CARE_STAFF}')));
 create policy leaves_update on public.student_leaves for update to authenticated

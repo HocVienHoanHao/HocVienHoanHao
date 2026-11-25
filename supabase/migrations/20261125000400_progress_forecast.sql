@@ -383,3 +383,18 @@ revoke execute on function public.class_progress, public.course_progress, public
 grant execute on function public.class_progress, public.course_progress, public.student_progress,
   public.student_progress_list to authenticated;
 revoke execute on function app.future_sessions(uuid, date, int[], date, date) from public, authenticated;
+
+-- Ghi audit cho mỗi lần export (chỉ nhân sự có quyền ở chi nhánh, hoặc SUPER_ADMIN khi xuất toàn hệ thống)
+create or replace function public.log_export(p_entity text, p_branch_id uuid, p_meta jsonb)
+returns void language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if not (app.is_super_admin() or (p_branch_id is not null
+          and app.has_branch_role(p_branch_id, '{BRANCH_MANAGER,ACCOUNTANT,CARE_STAFF}'))
+          or (p_branch_id is null and exists (select 1 from branch_memberships m where m.user_id = auth.uid() and m.active
+              and m.role in ('BRANCH_MANAGER','ACCOUNTANT','CARE_STAFF')))) then
+    perform app.forbid();
+  end if;
+  perform app.audit('EXPORT', p_entity, null, p_branch_id, p_meta);
+end $$;
+revoke execute on function public.log_export(text, uuid, jsonb) from public, anon;
+grant execute on function public.log_export(text, uuid, jsonb) to authenticated;
