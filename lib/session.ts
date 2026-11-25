@@ -1,7 +1,9 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { asUser } from "./db";
+import { authConfigured, supabaseServer } from "./supabase";
 
 export const DEV_COOKIE = "hh_dev_user";
 
@@ -17,14 +19,29 @@ export type Viewer = {
   isParent: boolean;
 };
 
+/** Danh tính đã xác thực: phiên Supabase (getUser kiểm tra với Auth server) hoặc cookie DEV (chỉ khi bật). */
+export type Identity = { id: string; email: string | null; source: "supabase" | "dev" };
+
+export const getIdentity = cache(async (): Promise<Identity | null> => {
+  if (devSwitcherEnabled()) {
+    const id = (await cookies()).get(DEV_COOKIE)?.value;
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) return { id, email: null, source: "dev" };
+  }
+  if (authConfigured()) {
+    const { data, error } = await (await supabaseServer()).auth.getUser();
+    if (!error && data.user) return { id: data.user.id, email: data.user.email ?? null, source: "supabase" };
+  }
+  return null;
+});
+
 /**
- * Người dùng hiện tại. Bản này chỉ có chế độ DEV (cookie chọn tài khoản demo).
- * TODO(Phase 1): thay bằng Supabase Auth session (JWT ký bởi Supabase) trước khi dùng thật.
+ * Người dùng hiện tại (đã có profile = đã được mời và nhận lời mời).
+ * Đăng nhập Supabase nhưng chưa được mời -> null (trang đăng nhập báo "chưa được cấp quyền").
  */
-export async function getViewer(): Promise<Viewer | null> {
-  if (!devSwitcherEnabled()) return null;
-  const id = (await cookies()).get(DEV_COOKIE)?.value;
-  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+export const getViewer = cache(async (): Promise<Viewer | null> => {
+  const ident = await getIdentity();
+  if (!ident) return null;
+  const id = ident.id;
   return asUser(id, async (tx) => {
     const [p] = await tx`select full_name from profiles where id = ${id}`;
     if (!p) return null;
@@ -40,7 +57,7 @@ export async function getViewer(): Promise<Viewer | null> {
       isParent: Boolean(g),
     };
   });
-}
+});
 
 export async function requireViewer(): Promise<Viewer> {
   const v = await getViewer();

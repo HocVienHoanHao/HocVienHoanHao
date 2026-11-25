@@ -10,5 +10,10 @@
 | Rò rỉ ghi chú nội bộ | `notes.visibility`; phụ huynh chỉ đọc PARENT đã `shared_at` | |
 | Lộ PII trong git/log/fixtures | Seed giả lập, `is_synthetic`; `.env*` bị gitignore; không có credentials trong code | Quét secret trong CI |
 | Đồng hồ giả để xác nhận buổi tương lai | `app.clock_override` chỉ superuser ghi được (dùng cho test) | Đảm bảo bảng trống ở production (checklist Phase 4) |
-| Chế độ chọn danh tính DEV bị bật ở production | Chỉ hoạt động khi `NODE_ENV !== "production"` và `DEV_IDENTITY_SWITCHER=1` | Thay bằng Supabase Auth trước khi deploy |
+| Chế độ chọn danh tính DEV bị bật ở production | Chỉ hoạt động khi `NODE_ENV !== "production"` và `DEV_IDENTITY_SWITCHER=1` | Đã có Supabase Auth; không đặt `DEV_IDENTITY_SWITCHER` ở môi trường thật |
+| Người lạ tự đăng ký bằng email rồi vào hệ thống | Quyền chỉ đến từ lời mời (`user_invitations`) khớp email đã xác minh trong JWT; không có lời mời → không profile/vai trò, RLS trả rỗng | Giữ Confirm email bật, tắt đăng nhập mật khẩu |
+| Giả mạo email để nhận lời mời của người khác | Server lấy email từ `supabase.auth.getUser()` (đã kiểm tra với Auth server), không từ form; RPC đọc email từ JWT claims | |
+| Dò email có trong hệ thống | Màn hình gửi mã luôn báo giống nhau; email giữ trong cookie httpOnly ngắn hạn, không đưa lên URL; audit lời mời không ghi email | Rate limit do Supabase Auth |
+| Quản lý tự nâng quyền | Chỉ SUPER_ADMIN mời SUPER_ADMIN/quản lý chi nhánh; quản lý chỉ mời HLV/kế toán/CSKH cho chi nhánh mình; bảng lời mời không cho ghi trực tiếp | |
+| Open redirect / Host header trong link email | Link đăng nhập dùng `APP_URL` cấu hình sẵn, callback luôn chuyển về `APP_URL/` | |
 | File đính kèm lộ qua URL công khai | Chưa có upload (Phase 3) | Bucket private + signed URL ngắn hạn |
