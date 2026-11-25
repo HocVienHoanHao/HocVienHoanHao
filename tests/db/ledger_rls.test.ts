@@ -147,7 +147,7 @@ describe("Test 3 — bảo lưu, FIFO, đổi chi nhánh", () => {
     const [{ inv }] = await sql`select count(*)::int inv from invoices where student_id = ${sid}`;
     expect(inv).toBe(0);                               // bảo lưu không tạo doanh thu/hóa đơn mới
   });
-  it("D3: không đặt hạn bảo lưu dài hơn khóa kế tiếp; không chuyển ngược về khóa trước", async () => {
+  it("D3: không đặt hạn bảo lưu dài hơn khóa kế tiếp; không chuyển ngược; chỉ chuyển 1 lần", async () => {
     const { sid, eid } = await newEnrollment();
     const k4 = await enroll(sql, { managerId: M, studentId: sid, classId: ID.class.QN_K4_U10, planId: ID.plan.std1m, startDate: "2026-12-14" });
     await rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c1", eid, k4, 3, "2026-11-25", "Bảo lưu", "2027-12-31"]);
@@ -155,6 +155,11 @@ describe("Test 3 — bảo lưu, FIFO, đổi chi nhánh", () => {
     expect(vu).toBe("2027-03-31");
     await expect(rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c2", k4, eid, 2, "2026-11-25", "Chuyển ngược", null]))
       .rejects.toThrow(/khóa sau/);
+    // mỗi gói chỉ chuyển bảo lưu 1 lần (không chia nhỏ thành nhiều lần chuyển)
+    await expect(rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c3", eid, k4, 2, "2026-11-25", "Chuyển lần 2", null]))
+      .rejects.toThrow(/1 lần/);
+    // gửi lại đúng yêu cầu cũ vẫn idempotent, không báo lỗi
+    await rpc(sql, M, "transfer_carryover", ["70000000-0000-0000-0000-0000000000c1", eid, k4, 3, "2026-11-25", "Bảo lưu", "2027-12-31"]);
   });
   it("đổi chi nhánh cần quyền quản lý cả hai chi nhánh", async () => {
     const { sid, eid } = await newEnrollment();

@@ -103,7 +103,7 @@ export default async function EnrollmentsPage({ searchParams }: { searchParams: 
               <div className="flex items-end"><button className="btn">Chuyển bảo lưu</button></div>
             </form>
           )}
-          <p className="mt-2 text-xs text-slate-500">Buổi bảo lưu chỉ dùng trong khóa kế tiếp: hạn dùng tự đặt bằng ngày kết thúc khóa của đăng ký đích, và không chuyển tiếp sang khóa sau nữa. Chuyển giữa hai chi nhánh cần quyền quản lý ở cả hai. Mỗi lần mở trang tạo một mã yêu cầu mới, bấm hai lần không bị chuyển trùng.</p>
+          <p className="mt-2 text-xs text-slate-500">Buổi bảo lưu chỉ dùng trong khóa kế tiếp: hạn dùng tự đặt bằng ngày kết thúc khóa của đăng ký đích, không chuyển tiếp sang khóa sau nữa, và mỗi gói chỉ chuyển bảo lưu 1 lần (nên chuyển toàn bộ số buổi cần bảo lưu trong một lần). Chuyển giữa hai chi nhánh cần quyền quản lý ở cả hai. Mỗi lần mở trang tạo một mã yêu cầu mới, bấm hai lần không bị chuyển trùng.</p>
         </section>
       </div>
 
