@@ -5,6 +5,7 @@ import { DemoBanner } from "./ui";
 
 const NAV: { href: string; label: string; managerOnly?: boolean; managerOrCare?: boolean }[] = [
   { href: "/admin", label: "Tổng quan" },
+  { href: "/admin/students/profiles", label: "Hồ sơ học viên" },
   { href: "/admin/students", label: "Học viên & tiến độ" },
   { href: "/admin/enrollments", label: "Đăng ký & bảo lưu", managerOnly: true },
   { href: "/admin/leaves", label: "Xin nghỉ" },

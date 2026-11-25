@@ -16,7 +16,7 @@ export class InputError extends Error {}
  * Chỉ hiển thị cho người dùng thông báo nghiệp vụ (RAISE trong RPC, thiếu quyền, dữ liệu nhập sai);
  * lỗi hệ thống khác thay bằng thông báo chung để không lộ chi tiết nội bộ.
  */
-function userMessage(e: unknown): string {
+export function userMessage(e: unknown): string {
   if (e instanceof InputError) return e.message;
   const code = (e as { code?: string })?.code;
   if (code === "P0001" || code === "42501") return (e as Error).message;
@@ -36,7 +36,7 @@ export async function runAction(back: string, okMsg: string, fn: () => Promise<u
   redirect(target);
 }
 
-function withParam(path: string, k: string, v: string) {
+export function withParam(path: string, k: string, v: string) {
   const [base, hash] = path.split("#");
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}${k}=${encodeURIComponent(v)}${hash ? `#${hash}` : ""}`;
