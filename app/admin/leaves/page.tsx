@@ -37,7 +37,7 @@ export default async function LeavesPage({ searchParams }: { searchParams: Promi
   return (
     <StaffShell viewer={viewer}>
       <h1 className="text-xl font-bold text-navy">Xin nghỉ</h1>
-      <p className="text-sm text-slate-500">Đơn từ phụ huynh hoặc CSKH. Chính sách mặc định: nghỉ có phép đã duyệt không trừ buổi; chọn &quot;Duyệt & trừ buổi&quot; nếu chính sách gói yêu cầu.</p>
+      <p className="text-sm text-slate-500">Đơn từ phụ huynh hoặc CSKH. Quy định: học viên nghỉ không được bảo lưu, buổi nghỉ vẫn trừ vào gói. Trường hợp đặc biệt đã thỏa thuận riêng với phụ huynh thì chọn &quot;Duyệt, không trừ buổi&quot; (được ghi nhật ký).</p>
       <Flash ok={sp.ok} err={sp.err} />
       <div className="my-2 text-sm">
         {showAll ? <Link className="text-brand underline" href="/admin/leaves">Chỉ đơn chờ duyệt</Link> : <Link className="text-brand underline" href="/admin/leaves?all=1">Xem cả đơn đã xử lý</Link>}
@@ -54,13 +54,13 @@ export default async function LeavesPage({ searchParams }: { searchParams: Promi
                   <td>{fmtDate(r.from_date)}{r.to_date !== r.from_date && <> – {fmtDate(r.to_date)}</>}</td>
                   <td className="max-w-xs whitespace-pre-wrap break-words">{r.reason}</td>
                   <td>{r.requested_by ?? "—"}<div className="text-xs text-slate-500">{fmtDateTime(r.created_at)}</div></td>
-                  <td><StatusBadge status={BADGE[r.status] ?? "NO_DATA"} label={LEAVE_LABEL[r.status] + (r.status === "APPROVED" && r.charge ? " · trừ buổi" : "")} /></td>
+                  <td><StatusBadge status={BADGE[r.status] ?? "NO_DATA"} label={LEAVE_LABEL[r.status] + (r.status === "APPROVED" && !r.charge ? " · không trừ buổi" : "")} /></td>
                   <td>
                     {r.status === "REQUESTED" && canDecide(r.branch_id) && (
                       <form action={decideLeaveAction} className="flex flex-wrap gap-1">
                         <input type="hidden" name="leave" value={r.id} />
                         <button name="decision" value="approve" className="btn py-1">Duyệt</button>
-                        <button name="decision" value="approve_charge" className="btn-ghost py-1">Duyệt & trừ buổi</button>
+                        <button name="decision" value="approve_free" className="btn-ghost py-1">Duyệt, không trừ buổi</button>
                         <button name="decision" value="reject" className="btn-ghost py-1 text-red-700">Từ chối</button>
                       </form>
                     )}

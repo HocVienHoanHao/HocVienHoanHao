@@ -107,10 +107,8 @@ describe("Test 8 — tiến độ theo ngày chốt", () => {
     expect(p.warnings.map((w) => w.code)).toContain("UNCONFIRMED_SESSIONS");
   });
 
-  it("nghỉ bị trừ theo policy -> present và charged khác nhau, báo cáo đúng cả hai", async () => {
-    // duyệt policy: ABSENT_UNEXCUSED bị trừ buổi
-    await sql`insert into policy_settings (key, version, value, status, approved_at)
-      values ('attendance.charge', 2, '{"PRESENT":true,"ABSENT_EXCUSED":false,"ABSENT_UNEXCUSED":true,"TRIAL":false}', 'APPROVED', now())`;
+  it("nghỉ bị trừ (D1) -> present và charged khác nhau, báo cáo đúng cả hai", async () => {
+    // D1 đã duyệt: nghỉ không bảo lưu -> vắng vẫn bị trừ buổi
     try {
       await mark(sql, C, pastIds[29], late.sid, "ABSENT_UNEXCUSED");
       const s = await sp(late.eid);
@@ -121,8 +119,7 @@ describe("Test 8 — tiến độ theo ngày chốt", () => {
       expect(s.study_milestones[1].status).not.toBe("REACHED");
       expect(s.entitlement_milestones[1].status).toBe("REACHED");
     } finally {
-      await sql`delete from policy_settings where key = 'attendance.charge'`;
-      await mark(sql, C, pastIds[29], late.sid, "PRESENT"); // khôi phục (policy mặc định: PRESENT trừ)
+      await mark(sql, C, pastIds[29], late.sid, "PRESENT"); // khôi phục
     }
     const s = await sp(late.eid);
     expect([s.present_sessions, s.charged_sessions, s.available_sessions]).toEqual([24, 24, 12]);
