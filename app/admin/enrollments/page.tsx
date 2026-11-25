@@ -99,12 +99,11 @@ export default async function EnrollmentsPage({ searchParams }: { searchParams: 
                 <select name="to" required className="input">{targets.map((p) => <option key={p.enrollment_id} value={p.enrollment_id}>{enrLabel(p)}</option>)}</select></label>
               <label className="flex flex-col gap-1"><span className="label">Số buổi</span><input type="number" name="sessions" min={1} max={500} required className="input" /></label>
               <label className="flex flex-col gap-1"><span className="label">Ngày chuyển</span><input type="date" name="date" required defaultValue={today} className="input" /></label>
-              <label className="flex flex-col gap-1"><span className="label">Hạn dùng buổi bảo lưu</span><input type="date" name="valid_until" className="input" /></label>
               <label className="flex flex-col gap-1 lg:col-span-2"><span className="label">Lý do</span><input name="reason" required maxLength={300} className="input" /></label>
               <div className="flex items-end"><button className="btn">Chuyển bảo lưu</button></div>
             </form>
           )}
-          <p className="mt-2 text-xs text-slate-500">Chuyển giữa hai chi nhánh cần quyền quản lý ở cả hai. Mỗi lần mở trang tạo một mã yêu cầu mới, bấm hai lần không bị chuyển trùng.</p>
+          <p className="mt-2 text-xs text-slate-500">Buổi bảo lưu chỉ dùng trong khóa kế tiếp: hạn dùng tự đặt bằng ngày kết thúc khóa của đăng ký đích, và không chuyển tiếp sang khóa sau nữa. Chuyển giữa hai chi nhánh cần quyền quản lý ở cả hai. Mỗi lần mở trang tạo một mã yêu cầu mới, bấm hai lần không bị chuyển trùng.</p>
         </section>
       </div>
 
