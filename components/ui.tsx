@@ -73,6 +73,8 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
 }
 
 export function DemoBanner() {
+  // chỉ hiện ở chế độ chọn danh tính DEV (không bao giờ ở production)
+  if (process.env.NODE_ENV === "production" || process.env.DEV_IDENTITY_SWITCHER !== "1") return null;
   return (
     <div className="bg-accent/90 px-4 py-1 text-center text-xs font-medium text-navy">
       Bản phát triển · dữ liệu GIẢ để demo · đăng nhập bằng chế độ chọn danh tính DEV

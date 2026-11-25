@@ -17,10 +17,14 @@ function getSql(): postgres.Sql {
 
 export type Tx = postgres.TransactionSql;
 
-export async function asUser<T>(userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+/**
+ * `email` chỉ truyền khi đã lấy từ phiên Supabase đã xác minh (getUser) — dùng cho nhận lời mời.
+ */
+export async function asUser<T>(userId: string, fn: (tx: Tx) => Promise<T>, claims: { email?: string | null } = {}): Promise<T> {
   const sql = getSql();
+  const jwt = { sub: userId, role: "authenticated", ...(claims.email ? { email: claims.email.toLowerCase() } : {}) };
   return (await sql.begin(async (tx) => {
-    await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: userId, role: "authenticated" })}, true)`;
+    await tx`select set_config('request.jwt.claims', ${JSON.stringify(jwt)}, true)`;
     await tx.unsafe("set local role authenticated");
     return fn(tx);
   })) as T;

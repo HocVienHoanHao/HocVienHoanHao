@@ -41,9 +41,9 @@ export async function createTestDb(): Promise<{ sql: Sql; drop: () => Promise<vo
 }
 
 /** Chạy fn trong transaction với role authenticated + JWT sub = userId. */
-export async function asUser<T>(sql: Sql, userId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+export async function asUser<T>(sql: Sql, userId: string, fn: (tx: Tx) => Promise<T>, extraClaims: Record<string, unknown> = {}): Promise<T> {
   return (await sql.begin(async (tx) => {
-    await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: userId, role: "authenticated" })}, true)`;
+    await tx`select set_config('request.jwt.claims', ${JSON.stringify({ ...extraClaims, sub: userId, role: "authenticated" })}, true)`;
     await tx.unsafe("set local role authenticated");
     return fn(tx);
   })) as T;
