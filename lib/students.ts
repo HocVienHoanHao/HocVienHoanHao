@@ -20,3 +20,8 @@ export function canManageBranch(v: Viewer, branchId: string): boolean {
   const m = managedBranchIds(v);
   return m === null || m.includes(branchId);
 }
+
+/** Quản lý hoặc kế toán chi nhánh: xem và ghi sổ thu tiền. */
+export function canFinanceBranch(v: Viewer, branchId: string): boolean {
+  return v.isSuperAdmin || v.roles.some((r) => (r.role === "BRANCH_MANAGER" || r.role === "ACCOUNTANT") && r.branchId === branchId);
+}
