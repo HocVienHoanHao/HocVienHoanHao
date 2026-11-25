@@ -30,6 +30,15 @@ export async function asUser<T>(userId: string, fn: (tx: Tx) => Promise<T>, clai
   })) as T;
 }
 
+/** DEMO_MODE chỉ chạy trên DB demo (có bảng đánh dấu hh_demo_marker); DB thật không có bảng này -> dừng ngay. */
+let demoDbChecked = false;
+export async function assertDemoDatabase(): Promise<void> {
+  if (demoDbChecked) return;
+  const [r] = await getSql()`select to_regclass('public.hh_demo_marker') is not null as ok`;
+  if (!r?.ok) throw new Error("DEMO_MODE bật nhưng database không phải database demo (thiếu bảng hh_demo_marker)");
+  demoDbChecked = true;
+}
+
 /** Danh sách tài khoản demo cho trang chọn danh tính DEV (chỉ dữ liệu giả). */
 export async function listDemoIdentities(): Promise<{ id: string; full_name: string; roles: string }[]> {
   const sql = getSql();
